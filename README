@@ -1,0 +1,177 @@
+
+###################################################################
+PREGO: An Action Language for Belief-Based Cognitive Robotics in Continuous Domains
+###################################################################
+
+CONTACT:
+Vaishak Belle <vaishak@cs.toronto.edu>
+
+LITERATURE REFERENCE FOR CITATION AND FOUNDATIONS: 
+
+Vaishak Belle, Hector J. Levesque:
+PREGO: An Action Language for Belief-Based Cognitive Robotics in Continuous Domains. AAAI 2014: 989-995
+
+Vaishak Belle, Hector J. Levesque:
+Reasoning about Probabilities in Dynamic Systems using Goal Regression. UAI 2013
+
+
+PREREQUISITES: 
+
+Racket version 5.3.6 or higher 
+
+INSTALLATION: 
+
+> git clone https://github.com/vaishakbelle/PREGO
+> cd PREGO 
+> racket -f examples/bat0.scm -i
+
+
+----------------------------------------------------------------------------
+DESCRIPTION
+
+These files allow degrees of belief in formulas after a sequence of possibly
+noisy physical and sensing actions to be regressed to degrees of belief in
+formulas about the initial state.  In addition, under certain conditions, a
+simple Monte Carlo sampling can be used to obtain a numerical estimate of
+these degrees of belief.
+
+----------------------------------------------------------------------------
+THE SPEC FORMAT
+
+For any given BAT, a spec file like the example bat1.scm is first created.  It
+should have this format:
+
+1.  (define-fluents flu flu ...)
+  A list of all the fluents to be used in the BAT.  These can be thought of as
+  probabilistic variables, whose values may or may not be known.
+
+2.  (define-ini-p-expr quoted-expr) 
+  The quoted-expr should be an expression (that mentions the fluents) that
+  evaluates to a number between 0.0 and 1.0 indicating the probability density
+  given to any situation where the fluents have certain values.
+
+3.  (define-ss-exprs flu act quoted-expr act quoted-expr ...)  
+  This determines the successor state expressions for the given fluent flu.
+  The act is of the form (name var var ...) where the vars are the arguments
+  of the action.  In the quoted-expr, those arguments will be replaced by
+  their values if back-quote and comma are used.  If the act takes place, the
+  new value of the fluent is as given by the quoted-expr. If an action is left
+  off the list, the fluent is assumed to be unchanged by the action.
+
+4.  (define-l-exprs act quoted-expr act quoted-expr ...)  
+  The format of the act and quoted-expr are as in #3.  For each act, the
+  quoted-expr is a numerical like in #2 and determines the likelihood for that
+  action.  If an action is left off the list, it gets a likelihood of 1.0.
+
+4.  (define-alts act altfn act altfn ...)  
+  The format of the act is as in #3 and #4.  The altfn is a function of one
+  argument that produces noisy versions of the act for that argument.  If an
+  action does not appear on the list, then it is exact with no noisy versions.
+
+----------------------------------------------------------------------------
+RANDOM DISTRIBUTIONS
+
+The numerical expressions for probabilities needed in #2 and #4 can be
+anything. For convenience, however, three special forms are provided:
+
+- (GAUSSIAN x mu sigma): this evaluates to the probability density for x on a
+  Gaussian distribution with mean mu and standard deviation sigma.
+
+- (UNIFORM x lo hi): this evaluates to the probability density for x on a
+  uniform distribution from lower bound of lo to upperbound of hi.
+
+- (DISCRETE x v1 p1 ... vn pn):  this evaluates to pi if x=vi and 0 otherwise.
+  The sum of all the pi is assumed to be 1.0.
+
+These are especially useful for the numerical estimates described below.
+
+----------------------------------------------------------------------------
+PERFORMING REGRESSION
+
+A BAT spec as above can be loaded into Racket with
+
+  > racket -f examples/bat0.scm -i
+
+The main function for regression, regr-bel, takes a wff and a list of
+actions, and returns a numeric expression whose value is the degree of belief
+in the wff after those actions.  For the given bat0.scm, we have
+
+> (regr-bel (<= h 7) ((sonar 5) (nfwd -2 -2.1)))
+'(/
+  (INTEGRATE
+   (h z43)
+   (*
+    (UNIFORM h 2 12)
+    (GAUSSIAN z43 -2 1.0)
+    (GAUSSIAN 5 h 4.0)
+    (if (<= (max 0 (- h z43)) 7) 1.0 0.0)))
+  (INTEGRATE
+   (h z44)
+   (* (UNIFORM h 2 12) (GAUSSIAN z44 -2 1.0) (GAUSSIAN 5 h 4.0))))
+
+This is the quotient of two expressions, where the denominator is simply a
+normalization term.  The numerator says we want to integrate over all
+values of h and z49, an expression which is the product of
+four terms.
+
+The first term derives from the probability of starting in an initial
+situation with a certain initial value for the fluents.  (Note, for example,
+that the expression will have value 0.0 unless h is between 2 and 12.)
+
+The next two terms result from the actions performed. The interpretation of the action sequence is as follows: the agent first performs the sonar and then does fwd. That is, in  sit calc, this is essentially saying Bel(h <= 7, do(nfwd(-2,-2.1), do(sonar(5),S0)). Using the abbreviated notation for action sequences from the PREGO AAAI publication, Bel(h <= 7,  do([sonar(5).nfwd(-2,-2.1)], S0). So the third term says that the reading of 5 observed on the sensor relates to the true value of h. The second term says a noisy action was performed and this variable is used in the expression of the current value of h being <=7. 
+
+
+It may help to contrast this to the following: 
+
+> (regr-bel (<= h 7) ((nfwd -2 -2.1)(sonar 5)))
+'(/
+  (INTEGRATE
+   (h z45)
+   (*
+    (UNIFORM h 2 12)
+    (GAUSSIAN 5 (max 0 (- h z45)) 4.0)
+    (GAUSSIAN z45 -2 1.0)
+    (if (<= (max 0 (- h z45)) 7) 1.0 0.0)))
+  (INTEGRATE
+   (h z46)
+   (*
+    (UNIFORM h 2 12)
+    (GAUSSIAN 5 (max 0 (- h z46)) 4.0)
+    (GAUSSIAN z46 -2 1.0))))
+
+where instead the measurement of 5 seen on the sonar is not wrt the true value of h but instead the value of h after the move, given by max(0, h-z45).
+
+
+----------------------------------------------------------------------------
+ESTIMATING THE DEGREE OF BELIEF
+
+Under certain conditions, a Monte Carlo process can estimate the value of the
+integrations and summations produced by regression.  There is a function
+eval-bel, which takes a wff, a list of actions, and an optional error
+tolerance, estimates the value when it can, and prints out statistics.
+
+> (eval-bel (<= h 7) ((sonar 5) (nfwd -2 -2.1)))
+Regression cpu time: 0 real time: 0 gc time: 0
+Estimation of belief with sigma=0.01
+Integration over 2 variables: N is 0.001 x 10^6
+Integration over 2 variables: N is 0.001 x 10^6
+cpu time: 16 real time: 16 gc time: 0
+0.454877260885665
+
+It does this by first performing the regression, and then using the function
+make-monte to transform the regressed expression into one amenable to sampling.
+
+For this to work, it must be possible to extract distributions for each random
+variable and then generate random numbers according to those distributions.
+To do this simply, the following constraints on the BAT need to be observed:
+
+1. The ini-p-expr must be a product of terms, containing for each fluent an
+   expression consisting of one of the known probability densities.
+
+2. The l-expr for each noisy action must be an expression consisting of one of
+   the known probability densities for the variable in question.  (The l-expr
+   for sensing actions can be anything.)
+
+This amounts to assuming that every probabilistic variable is distributed
+according to one of the known functions.  This restriction is not needed for
+regression, but only for the Monte Carlo estimation.

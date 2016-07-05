@@ -1,0 +1,96 @@
+# Sample outputs (cf. README)
+
+## For bat0.scm
+
+> (regr-bel (<= h 7) ((sonar 5) (nfwd -2 -2.1)))
+'(/
+  (INTEGRATE
+   (h z41)
+   (*
+    (UNIFORM h 2 12)
+    (GAUSSIAN z41 -2 1.0)
+    (GAUSSIAN 5 h 4.0)
+    (if (<= (max 0 (- h z41)) 7) 1.0 0.0)))
+  (INTEGRATE
+   (h z42)
+   (* (UNIFORM h 2 12) (GAUSSIAN z42 -2 1.0) (GAUSSIAN 5 h 4.0))))
+
+> (eval-bel (<= h 7) ((sonar 5) (nfwd -2 -2.1)))
+Regression cpu time: 0 real time: 0 gc time: 0
+Estimation of belief with sigma=0.01
+Integration over 2 variables: N is 0.001 x 10^6
+Integration over 2 variables: N is 0.001 x 10^6
+cpu time: 8 real time: 8 gc time: 0
+0.48310216980248255
+
+---
+
+## For bat1.scm: 
+
+
+> (eval-bel (eq? light 'on) ((null)))
+Regression cpu time: 0 real time: 1 gc time: 0
+Estimation of belief with sigma=0.01
+Integration over 4 variables: N is 0.001 x 10^6
+Integration over 4 variables: N is 0.001 x 10^6
+cpu time: 9 real time: 9 gc time: 0
+1.0
+
+> (eval-bel (eq? light 'off) ((null)))
+Regression cpu time: 1 real time: 1 gc time: 0
+Estimation of belief with sigma=0.01
+Integration over 4 variables: N is 0.001 x 10^6
+Integration over 4 variables: N is 0.001 x 10^6
+cpu time: 15 real time: 16 gc time: 0
+0.0
+
+> (eval-bel (eq? light 'off) ((toggle)))
+Regression cpu time: 0 real time: 0 gc time: 0
+Estimation of belief with sigma=0.01
+Integration over 4 variables: N is 0.001 x 10^6
+Integration over 4 variables: N is 0.001 x 10^6
+cpu time: 16 real time: 17 gc time: 0
+1.0
+
+> (eval-bel (eq? light 'off) ((ntoggle 'on)))
+Regression cpu time: 0 real time: 0 gc time: 0
+Estimation of belief with sigma=0.01
+Integration over 5 variables: N is 0.003 x 10^6
+Integration over 5 variables: N is 0.001 x 10^6
+cpu time: 26 real time: 27 gc time: 9
+0.6076666666666667
+
+> (eval-bel (eq? light 'on) ((ntoggle 'off)))
+Regression cpu time: 0 real time: 2 gc time: 0
+Estimation of belief with sigma=0.01
+Integration over 5 variables: N is 0.003 x 10^6
+Integration over 5 variables: N is 0.001 x 10^6
+cpu time: 15 real time: 15 gc time: 0
+0.402
+
+> (eval-bel (eq? temp 'cold) ((sense-temp 'cold)))
+Regression cpu time: 0 real time: 0 gc time: 0
+Estimation of belief with sigma=0.01
+Integration over 4 variables: N is 0.001 x 10^6
+Integration over 4 variables: N is 0.001 x 10^6
+cpu time: 12 real time: 13 gc time: 0
+0.4932301740812379
+
+
+> (eval-bel (eq? temp 'cold) ((sense-temp 'hot)))
+Regression cpu time: 0 real time: 0 gc time: 0
+Estimation of belief with sigma=0.01
+Integration over 4 variables: N is 0.001 x 10^6
+Integration over 4 variables: N is 0.001 x 10^6
+cpu time: 29 real time: 31 gc time: 15
+0.0
+
+> (eval-bel (eq? temp 'cold) ((sense-temp 'cool)))
+Regression cpu time: 0 real time: 0 gc time: 0
+Estimation of belief with sigma=0.01
+Integration over 4 variables: N is 0.001 x 10^6
+Integration over 4 variables: N is 0.001 x 10^6
+cpu time: 12 real time: 13 gc time: 0
+0.0835532102022875
+
+---
